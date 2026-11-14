@@ -1,7 +1,7 @@
 # PROGRESS — Datathon 2026, UPC Sostenible (Challenge 3)
 
 **Team**: David Lázaro, Elayne Valverde, Jan Jardí, Zhipeng Pei
-**Status**: MPC agent ready, validated locally (~6.12 vs starter 1.75). Not yet submitted.
+**Status**: Submission #1 (MPC v1) scored **6.43 official** (local proxy 6.12, 0 infractions, pos 21è in a 6.43 plateau). Decision: invest in structural experiments → see `SUBMISSIONS.md`.
 
 ---
 
@@ -98,3 +98,13 @@ Mar 6.4, Apr 7.3, May 7.2, Jun 7.2, Jul 6.5), 0 infractions.
 3. Optional micro-gains: extend horizon past 24 h with monthly mean w-profiles,
    per-month γ, richer load model (hour×dow×month), fallback if scipy fails on server.
 4. Keep a locked copy of the best agent before experimenting further.
+
+---
+
+## 10. Submissions
+
+Full submission log, leaderboard snapshots and next-step decisions live in **[`SUBMISSIONS.md`](SUBMISSIONS.md)**.
+
+- Reference: official tutorial agent = 2.16 pts.
+- #1 (2026-11-14 14:13) MPC v1 best_v1: **6.43** (CO₂ −5.95%, cost −7.54%, 0 infractions). Dry-run: 48 h, 0 infractions, 1.698 ms/step.
+- Score formula verified: 0.7·5.95 + 0.3·7.54 = 6.43 ✓. Leaderboard plateau ≈ 6.43 for ≥10 teams → structural improvements needed (long horizon, per-month γ).
