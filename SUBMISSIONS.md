@@ -40,6 +40,8 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 
 **Ideas en cola (prioridad)**
 
+1. **Horizonte >24 h** con perfil mensual de `w` — el LP termina ciego cada medianoche.
+2. ~~Forecast más fino del net-load~~ — **DESCARTADO (experimento Pei, 14/11)**: LightGBM directo t+1..t+24 (20 features observables, in_hidden_week==0, pesos imputed_frac) da **+0.002 local** vs tablas+memoria (umbral +0.02). El LP no es sensible a errores de forecast de load (±25 kW): las decisiones las manda el paisaje w[t] conocido. Ver `work/train_lgbm.py`, `work/lgbm_agent.py`, `work/eval_lgbm.py`.
 1. **Horizonte 48 h** con tablas ricas de Jan (`params_rich.json`, hour × dow × month, `in_hidden_week == 0`).
 2. Forecast ML de Pei (LightGBM consumo/solar t+1..t+24) — **umbral de envío: batir a tablas+memoria por ≥0.02** en `evaluate_local.py` (el techo oracle dice que no invertir más de media jornada).
 3. Revisar patrón de ciclos: el SOC toca 0/100 a menudo — ¿el corte a 24 h deja valor sobre la mesa?
