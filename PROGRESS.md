@@ -1,7 +1,10 @@
 # PROGRESS — Datathon 2026, UPC Sostenible (Challenge 3)
 
 **Team**: David Lázaro, Elayne Valverde, Jan Jardí, Zhipeng Pei
-**Status**: Submission #1 (MPC v1) scored **6.43 official** (local proxy 6.12, 0 infractions, pos 21è in a 6.43 plateau). Decision: invest in structural experiments → see `SUBMISSIONS.md`.
+**Status**: MPC agent (v1) frozen in `best_v1/` + root `submission/`.
+**Real server score: 6.43** (platform repteupc.datathon.cat, submission with
+gamma=0.259, agent defaults otherwise). Local pseudo-test proxy: 6.12 —
+the proxy underestimates slightly; hidden test weeks score better.
 
 ---
 
@@ -92,19 +95,8 @@ Mar 6.4, Apr 7.3, May 7.2, Jun 7.2, Jul 6.5), 0 infractions.
 
 ## 9. Remaining / next steps
 
-1. Package `submission.zip` (`agent.py` + `params.json`) and run `check_submission.py`.
-2. Make 1–2 platform submissions to calibrate vs. the hidden test
-   (expect deviation from the 6.12 local proxy; hidden weeks are days 25–31).
+1. ~~Package `submission.zip`~~ DONE — submitted on the platform; **server score 6.43**.
+2. Calibration: local proxy 6.12 vs server 6.43 (proxy slightly pessimistic — fine).
 3. Optional micro-gains: extend horizon past 24 h with monthly mean w-profiles,
    per-month γ, richer load model (hour×dow×month), fallback if scipy fails on server.
-4. Keep a locked copy of the best agent before experimenting further.
-
----
-
-## 10. Submissions
-
-Full submission log, leaderboard snapshots and next-step decisions live in **[`SUBMISSIONS.md`](SUBMISSIONS.md)**.
-
-- Reference: official tutorial agent = 2.16 pts.
-- #1 (2026-11-14 14:13) MPC v1 best_v1: **6.43** (CO₂ −5.95%, cost −7.54%, 0 infractions). Dry-run: 48 h, 0 infractions, 1.698 ms/step.
-- Score formula verified: 0.7·5.95 + 0.3·7.54 = 6.43 ✓. Leaderboard plateau ≈ 6.43 for ≥10 teams → structural improvements needed (long horizon, per-month γ).
+4. Keep `best_v1/` untouched as the reference; experiment in `work/` only.
