@@ -107,6 +107,15 @@ class BatteryAgent:
         return float(res.x[0] - res.x[H])       # p_c[0] - p_d[0]
 
     # ---------- agent ----------
+    @staticmethod
+    def _clean(x):
+        """NaN/None/basura -> None (evita propagar NaN al LP: ValueError)."""
+        try:
+            x = float(x)
+            return None if np.isnan(x) else x
+        except (TypeError, ValueError):
+            return None
+
     def act(self, obs):
         price_arr = obs.get("preus_properes_24h") or []
         co2_arr = obs.get("co2_properes_24h") or []
@@ -123,8 +132,8 @@ class BatteryAgent:
             import pandas as pd
             ts = pd.Timestamp(ts)
         d5 = obs.get("noves_dades_5min") or {}
-        last_net = d5.get("ultim_consum_kw", None)
-        last_pv = d5.get("ultima_solar_kw", None)
+        last_net = self._clean(d5.get("ultim_consum_kw", None))
+        last_pv = self._clean(d5.get("ultima_solar_kw", None))
         # last completed hour is ts - 1h; update per-hour ratio memory
         if hasattr(ts, "hour"):
             if self.last_ts is None or ts - self.last_ts == pd_offset(1):
