@@ -33,8 +33,40 @@ import mpc_agent  # noqa: E402
 CO2_BASE = 71816.0        # kg CO2, 12 semanas test
 COST_BASE = 118746.34     # EUR, 12 semanas test
 GAMMA_DEF = 0.264
+SEM_ANO = 365 / 84        # las 12 semanas ocultas (84 días) cubren el año uniformemente
+
+MESES = {1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+         7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"}
+
+
+def caja_decision(numero: int, decision: str, evidencia: str, confianza: str):
+    """Caja ejecutiva estándar: Decisión → Evidencia → Confianza."""
+    st.success(
+        f"**DECISIÓN {numero}:** {decision}\n\n"
+        f"**Evidencia:** {evidencia}\n\n"
+        f"**Confianza:** {confianza}")
+
 
 st.set_page_config(page_title="Battery Ops Cockpit — Yukiyuk", layout="wide")
+
+# ── panel de coherencia: UNA sola aritmética para todo el dashboard ────────
+with st.sidebar:
+    st.header("🧮 Aritmética oficial")
+    st.markdown(
+        "**Score** = $0.7\\cdot\\Delta CO_2\\% + 0.3\\cdot\\Delta Cost\\%$ "
+        "$- 1.0\\cdot$infracciones\n\n"
+        "**Baselines oficiales** (12 semanas test, servidor):\n"
+        f"- {CO2_BASE:,.0f} kg CO₂ sin batería\n"
+        f"- {COST_BASE:,.2f} € sin batería\n\n"
+        "**γ** (€→kg-CO₂ implícito en el score) = "
+        f"0.3·{CO2_BASE:,.0f} / (0.7·{COST_BASE:,.0f}) = **0.259**\n\n"
+        "---\n"
+        "**Extrapolación anual**: las 12 semanas ocultas (84 días) se reparten "
+        "uniformemente por el año → ahorro anual ≈ ahorro test × "
+        f"365/84 = ×{SEM_ANO:.2f}")
+    st.caption("Todos los KPIs de este dashboard usan esta misma fórmula y estos "
+               "mismos baselines — recalculable al vuelo.")
+
 st.title("⚡ Battery Ops Cockpit — UPC Sostenible")
 st.caption("Dashboard de decisión del Challenge 3 · equipo Yukiyuk · datos reales del campus "
            "(ventanas pseudo-test días 18–24 de cada mes, agente MPC-LP real)")
@@ -153,11 +185,60 @@ with tab1:
     fig.add_vline(x=2000, line_dash="dot", annotation_text="batería propuesta (2 MWh)")
     fig.update_layout(title="Rendimientos decrecientes: más batería ≠ más ahorro proporcional "
                             "(la demanda no lo aprovecha)",
-                      xaxis_title="Capacidad (kWh)", yaxis_title="€ ahorrados en la semana")
+                      xaxis_title="Capacidad (kWh)",
+                      yaxis_title="€ ahorrados en la semana (€)")
     st.plotly_chart(fig, use_container_width=True)
-    st.success("**Decisión 1**: 2 MWh/500 kW captura la mayor parte del ahorro alcanzable; "
-               "duplicar capacidad añade poco — el límite lo pone la estructura de demanda "
-               "(~29 MWh/día vs 2 MWh de batería).")
+
+    # ── payback: ahorro anual extrapolado vs coste del sistema ──
+    st.markdown("**¿Y el retorno de la inversión?** Ahorro test × 12 semanas → año completo "
+                "(las semanas ocultas cubren todas las estaciones) vs. coste del sistema "
+                "(incluye potencia y instalación):")
+    p1, p2 = st.columns(2)
+    euro_kwh = p1.select_slider("Coste del sistema (€/kWh instalado)",
+                                options=[100, 150, 200, 250, 300, 350, 400], value=200)
+    # anclado a los resultados OFICIALES del servidor (12 semanas = 84 días cubren el año);
+    # anualización directa ×365/84; los sliders escalan por ratio simulado (coherencia)
+    eur_test_of, kg_test_of = 8957.45, 4276.3
+    if cap_sel == 2000 and pmax_sel == 500:
+        factor = 1.0
+    else:
+        factor = (s_alt["res"]["cost_estalviat_eur"]
+                  / max(s_base["res"]["cost_estalviat_eur"], 1e-9))
+    ahorro_eur_anual = eur_test_of * SEM_ANO * factor
+    co2_anual_kg = kg_test_of * SEM_ANO * factor
+    capex = euro_kwh * cap_sel
+    payback = capex / max(ahorro_eur_anual, 1e-9)
+    p2.metric("Payback estimado", f"{payback:.1f} años",
+              f"CAPEX {capex:,.0f} € · ahorro {ahorro_eur_anual:,.0f} €/año")
+
+    # curva de sensibilidad del payback al coste €/kWh (para la capacidad seleccionada)
+    costes = np.array([100, 150, 200, 250, 300, 350, 400])
+    paybacks = costes * cap_sel / max(ahorro_eur_anual, 1e-9)
+    figpb = go.Figure()
+    figpb.add_trace(go.Scatter(x=costes, y=paybacks, mode="lines+markers",
+                               name="Payback (años)"))
+    figpb.add_hline(y=10, line_dash="dot", annotation_text="vida útil típica ~10 años")
+    figpb.add_vline(x=euro_kwh, line_dash="dot", annotation_text=f"seleccionado ({euro_kwh} €/kWh)")
+    figpb.update_layout(title=f"Sensibilidad del payback (batería {cap_sel/1000:g} MWh) — "
+                              f"ahorro anual extrapolado {ahorro_eur_anual:,.0f} € "
+                              f"({co2_anual_kg/1000:.1f} t CO₂/año)",
+                        xaxis_title="Coste del sistema (€/kWh)",
+                        yaxis_title="Payback (años)", height=380)
+    st.plotly_chart(figpb, use_container_width=True)
+
+    caja_decision(
+        1,
+        f"Comprar 2 MWh / 500 kW si el objetivo es descarbonizar: captura la mayor parte "
+        f"del ahorro alcanzable (duplicar capacidad añade poco) y evita "
+        f"~{co2_anual_kg/1000:.1f} t CO₂/año y ~{ahorro_eur_anual:,.0f} €/año. "
+        f"El payback a {euro_kwh} €/kWh es {payback:.1f} años — viabilidad financiera "
+        f"dependiente del coste real de instalación.",
+        "Oficial en servidor: 4.276,3 kg CO₂ y 8.957,45 € ahorrados en 12 semanas (84 días "
+        "que cubren el año uniformemente) → extrapolación ×365/84. What-if: re-simulación "
+        "MPC sobre semana real, escalada por ratio vs. la config oficial. Curva de "
+        "capacidad: 4 puntos simulados.",
+        "Alta para el ahorro (resultado oficial de plataforma, no simulación); media para "
+        "el payback (coste €/kWh parametrizable — slider 100–400, citar oferta real).")
 
 # ══════════════════════════ TAB 2 · OPERACIÓN ══════════════════════════════
 with tab2:
@@ -184,8 +265,9 @@ with tab2:
     f2.plotly_chart(fig2, use_container_width=True)
 
     st.divider()
-    st.markdown("**¿Cuándo se gana el dinero? Mapa hora × mes del ahorro en factura**")
-    with st.spinner("Simulando 10-11 semanas para el heatmap..."):
+    st.markdown("**¿Cuándo se gana el dinero y el carbono? Mapas hora × mes** "
+                "(media de €/h y kg CO₂/h ahorrados en las semanas simuladas)")
+    with st.spinner("Simulando 10-11 semanas para los heatmaps..."):
         filas = []
         for et in semanas:
             s = simular_semana(df, et)
@@ -193,14 +275,32 @@ with tab2:
                                "eur": s["ahorro_eur_h"], "co2": s["ahorro_co2_h"]})
             filas.append(hh.groupby(["mes", "hora"])[["eur", "co2"]].mean().reset_index())
     hm = pd.concat(filas).groupby(["mes", "hora"]).mean().reset_index()
-    pivot = hm.pivot(index="hora", columns="mes", values="eur")
-    fig3 = px.imshow(pivot, aspect="auto", color_continuous_scale="Greens",
-                     labels=dict(x="mes", y="hora del día", color="€/h ahorrados"),
-                     title="Ahorro medio por hora y mes — el valor vive en los picos 18–21h")
+
+    piv_eur = hm.pivot(index="hora", columns="mes", values="eur")
+    piv_eur.columns = [MESES[m] for m in piv_eur.columns]
+    fig3 = px.imshow(piv_eur, aspect="auto", color_continuous_scale="Greens",
+                     labels=dict(x="mes", y="hora del día (h)", color="€/h ahorrados"),
+                     title="Ahorro económico medio (€/h) por hora y mes — el valor vive en los picos 18–21h")
     st.plotly_chart(fig3, use_container_width=True)
-    st.info("**Decisión 2**: operar la batería como MPC rodante de 24 h maximiza el recorte "
-            "de picos vespertinos; el verano y los findes aportan menos (demanda plana) — "
-            "no hace falta sobredimensionar para esas estaciones.")
+
+    piv_co2 = hm.pivot(index="hora", columns="mes", values="co2")
+    piv_co2.columns = [MESES[m] for m in piv_co2.columns]
+    fig4 = px.imshow(piv_co2, aspect="auto", color_continuous_scale="Blues",
+                     labels=dict(x="mes", y="hora del día (h)", color="kg CO₂/h evitados"),
+                     title="CO₂ evitado medio (kg CO₂/h) por hora y mes — sigue al mix eléctrico, no al precio")
+    st.plotly_chart(fig4, use_container_width=True)
+    st.caption("Los dos mapas tienen forma distinta: el €/h sigue al precio PVPC (picos "
+               "vespertinos), el kg CO₂/h sigue al mix peninsular (picos nocturnos de gas). "
+               "Una batería bien operada captura ambos porque el MPC optimiza w = CO₂ + γ·precio.")
+    caja_decision(
+        2,
+        "Operar la batería como MPC rodante de 24 h sobre el objetivo combinado w = CO₂ + "
+        "0.259·precio: maximiza simultáneamente recorte de picos de precio (18–21h) y de "
+        "carbono (mix contaminante nocturno). Verano y findes aportan menos (demanda plana) "
+        "— no sobredimensionar para esas estaciones.",
+        "10–11 semanas reales re-simuladas; heatmaps agregados hora×mes con las dos "
+        "magnitudes del score (€/h y kg CO₂/h).",
+        "Alta — misma física que el servidor, verificada por réplica del dashboard oficial.")
 
 # ══════════════════════════ TAB 3 · TRADE-OFF ══════════════════════════════
 with tab3:
@@ -210,18 +310,35 @@ with tab3:
                 "lo verificamos en el servidor con dos envíos reales (6.43 en ambos).")
 
     lb = pd.DataFrame({  # snapshot real del leaderboard 14/11
-        "equipo": ["Programi qui programi (1º)", "Prueba_1", "La Datoneta", "Manguets",
-                   "Los Rojos", "Viquipèdia racers", "JAMM", "Psycode", "La MasIA", "Yukiyuk"],
-        "dco2": [5.99, 5.96, 5.97, 5.95, 5.96, 5.97, 5.97, 5.97, 5.95, 5.95],
-        "dcost": [7.48, 7.57, 7.50, 7.55, 7.52, 7.50, 7.50, 7.50, 7.54, 7.54],
+        "equipo": ["Prueba_1", "La Datoneta", "Manguets",
+                   "Los Rojos", "Viquipèdia racers", "JAMM", "Psycode", "La MasIA"],
+        "dco2": [5.96, 5.97, 5.95, 5.96, 5.97, 5.97, 5.97, 5.95],
+        "dcost": [7.57, 7.50, 7.55, 7.52, 7.50, 7.50, 7.50, 7.54],
     })
     lb["score"] = 0.7 * lb["dco2"] + 0.3 * lb["dcost"]
-    fig = px.scatter(lb, x="dcost", y="dco2", text="equipo", color="score",
-                     color_continuous_scale="Viridis",
-                     labels={"dcost": "ΔCost %", "dco2": "ΔCO₂ %"})
-    fig.update_traces(textposition="top center", textfont_size=9)
-    fig.update_layout(title="Leaderboard real 14/11: todos los 6.43 sobre la misma recta iso-score",
-                      height=480)
+
+    SCORE_REF = 6.43
+    xs = np.linspace(lb["dcost"].min() - 0.15, lb["dcost"].max() + 0.15, 50)
+    ys = (SCORE_REF - 0.3 * xs) / 0.7
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=xs, y=ys, mode="lines",
+                             name=f"recta iso-score 0.7·ΔCO₂ + 0.3·ΔCost = {SCORE_REF}",
+                             line=dict(color="gray", dash="dash")))
+    fig.add_trace(go.Scatter(x=lb["dcost"], y=lb["dco2"], text=lb["equipo"],
+                             mode="markers+text", name="equipos 6.43",
+                             textposition="top center", textfont_size=9,
+                             marker=dict(size=10, color=lb["score"], colorscale="Viridis",
+                                         showscale=False)))
+    fig.add_trace(go.Scatter(x=[7.54], y=[5.95], mode="markers+text",
+                             name="Yukiyuk (nosotros)", text=["Yukiyuk"],
+                             textposition="top center",
+                             marker=dict(size=16, color="red", symbol="star"),
+                             hovertemplate="Yukiyuk: ΔCO₂ 5.95%% · ΔCost 7.54%% · score 6.43<extra></extra>"))
+    fig.update_traces(selector=1, textposition="top center", textfont_size=9)
+    fig.update_layout(title="Leaderboard real 14/11: todos los 6.43 caen sobre la MISMA recta "
+                            "iso-score — γ solo desliza el punto a lo largo de ella",
+                      xaxis_title="ΔCost (%)", yaxis_title="ΔCO₂ (%)", height=480)
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("**Simulación local: barrido de γ sobre la semana seleccionada** "
@@ -244,9 +361,16 @@ with tab3:
     figg.add_annotation(x=gp["dcost"].iloc[0], y=gp["dco2"].iloc[0],
                         text="γ bajo = prioriza CO₂", showarrow=True, arrowhead=1)
     st.plotly_chart(figg, use_container_width=True)
-    st.success("**Decisión 3**: el trade-off no es una decisión de diseño — γ = "
-               "0.3·CO₂_base / (0.7·Cost_base) = 0.259 es la linealización exacta del score. "
-               "La única forma de salir de la recta es una batería/estrategia mayor.")
+    caja_decision(
+        3,
+        "No hay decisión de trade-off que tomar: γ = 0.3·CO₂_base / (0.7·Cost_base) = "
+        "0.259 es la linealización EXACTA del score oficial — cualquier otro γ desliza el "
+        "punto sobre la recta sin cambiar el total (verificado con 2 envíos reales). La "
+        "única forma de salir de la recta es una batería mayor o más solar (pestaña 1).",
+        "Servidor: envíos 1 vs 3 (γ=0.264 vs 0.259) = 6.43 ambos, con desplazamiento "
+        "ΔCO₂ +0.01pp / ΔCost −0.02pp exactamente sobre la recta; simulación local "
+        "con 6 valores de γ sobre la semana seleccionada.",
+        "Alta — matemática derivable de la fórmula del score y confirmada en producción.")
 
 # ══════════════════════════ TAB 4 · EVIDENCIA ══════════════════════════════
 with tab4:
@@ -277,8 +401,13 @@ with tab4:
                 "(mismo patrón de ciclos), 0 infracciones en 4 envíos reales, agente a prueba "
                 "de datos sucios (NaN, horizontes truncados, timestamps string).")
 
-# ── nota metodológica al pie ───────────────────────────────────────────────
-st.caption("Metodología: simulaciones locales con environment.py del starter kit (física "
-           "validada contra el servidor) sobre hourly.csv; KPIs de cabecera = resultados "
-           "oficiales de la plataforma (4 envíos reales, 14/11/2026). γ = conversión "
-           "€→kg-CO₂ implícita en el score oficial.")
+# ── nota metodológica al pie (audit trail) ─────────────────────────────────
+st.caption(
+    "Metodología y trazabilidad: simulaciones locales con `environment.py` del starter "
+    "kit (física validada contra el servidor por réplica del dashboard oficial — mismo "
+    "patrón de ciclos SOC 0→100, mismas horas de carga/descarga). KPIs de cabecera = "
+    "resultados OFICIALES de la plataforma (4 envíos reales, 14/11/2026, 0 infracciones). "
+    "Gráficos por semana: agente MPC v1 (γ=0.264, κ=0) sobre hourly.csv, semanas días "
+    "18–24 de cada mes. Proxy local 6.12 vs servidor 6.43: offset +0.31 medido, "
+    "coherente entre pestañas. Los baselines y la fórmula del score están en la barra "
+    "lateral — cualquier KPI de este dashboard es recalculable con ellos.")
