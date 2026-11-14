@@ -30,21 +30,23 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 
 > Total gastado: **4/30**. Cada envío restante debe tener hipótesis y métrica de éxito.
 
-## 3. Estado actual (tras 4 envíos)
+## 3. Estado actual (tras 4 envíos + ola de experimentos)
 
 - **Mejor score: 6.43** · el último envío es también el mejor → **blindados** ante cualquier regla de ranking (mejor o último).
 - **Espacio de hiperparámetros AGOTADO** (verificado en servidor y sweeps): γ ✗ · κ ✗ · β ✗ · β_mem ✗ — el MPC puntúa 6.43 con cualquier configuración de estos knobs. Agente **robusto**, no afinado por suerte.
+- **Espacio estructural TAMBIÉN CERRADO (medido, ver §7)**:
+  - Forecast ✗: tablas ricas (67 vs 91 kW MAE) y LightGBM (+0.002 < umbral 0.02) **no mueven el score** — con net-load ≫ batería, `g = net_f + p` nunca satura y el LP decide solo con `w` (conocido exacto) y SOC; los errores de load no cambian decisiones.
+  - Horizonte 48 h ✗: retest limpio **A=B=C=5.534** → neutro, sin artefacto de cola. La cota del blindspot (2.37 pts) era límite superior que no se materializa.
 - **Configuración canónica**: `submission/` (κ=0, γ=0.264). `best_v1/` congelado como referencia. No hace falta best_v2.
-- El tier **6.44 empieza en 6.437 reales** (+0.009). Solo se alcanza con **estructura**, no parámetros.
-- **Techo estimado**: oracle con foresight perfecto ≈ 6.16 local → **~6.47 en plataforma** (offset +0.31 observado). Ahí es donde apuntamos.
+- **Entorno local validado como oráculo**: `replica_72h.py` reproduce el patrón del dashboard oficial (cargas +500 kW de mañana, descargas −500 kW en picos, SOC 0→100→0, arranque 50%) → `evaluate_local.py` es fiable para aprobar/rechazar envíos.
+- El tier **6.44 empieza en 6.437 reales** (+0.009): hoy **no hay palanca conocida** que lo mueva. El gap local→plataforma (6.12→6.43) es de período de datos, no de método.
+- **Techo estimado**: oracle con foresight perfecto ≈ 6.16 local → **~6.47 en plataforma** (offset +0.31 observado).
 
-**Ideas en cola (prioridad)**
+**Lo que queda por hacer**
 
-1. **Horizonte >24 h** con perfil mensual de `w` — el LP termina ciego cada medianoche.
-2. ~~Forecast más fino del net-load~~ — **DESCARTADO (experimento Pei, 14/11)**: LightGBM directo t+1..t+24 (20 features observables, in_hidden_week==0, pesos imputed_frac) da **+0.002 local** vs tablas+memoria (umbral +0.02). El LP no es sensible a errores de forecast de load (±25 kW): las decisiones las manda el paisaje w[t] conocido. Ver `work/train_lgbm.py`, `work/lgbm_agent.py`, `work/eval_lgbm.py`.
-1. **Horizonte 48 h** con tablas ricas de Jan (`params_rich.json`, hour × dow × month, `in_hidden_week == 0`).
-2. Forecast ML de Pei (LightGBM consumo/solar t+1..t+24) — **umbral de envío: batir a tablas+memoria por ≥0.02** en `evaluate_local.py` (el techo oracle dice que no invertir más de media jornada).
-3. Revisar patrón de ciclos: el SOC toca 0/100 a menudo — ¿el corte a 24 h deja valor sobre la mesa?
+1. **Robustez domingo** (guards NaN, timestamps raros, fallback si `linprog` falla) — protege, no suma.
+2. Higiene de envíos: no subir nada que no bata 6.12 local en ≥0.02 y 0 infracciones (criterio `evaluate_local.py` + `SUBMISSIONS.md`).
+3. Cualquier idea nueva pasa primero por el filtro: ¿es γ/κ/forecast/horizonte? → entonces ya sabemos que da 0. Buscar palancas de otra naturaleza o aceptar el 6.43 y blindar.
 
 ## 4. Log de envíos
 
@@ -114,3 +116,16 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 | 21è | 14:13:26 | **Yukiyuk** | **6.43** | 5.95% | 7.54% | 4276.3 kg | 8957.45 € | 0 |
 
 > Diagnóstico del anexo: meseta perfecta 6.43 en todo el bloque visible. Desempates internos dan preferencia al que **antes se registró** → cada punto real de mejora ahora vale más que la hora de registro.
+
+## 7. Experimentos estructurales (sin coste de envío) — 14/11 tarde
+
+| Experimento | Quién | Resultado | Decisión |
+|---|---|---|---|
+| **Blindspot del horizonte** (`work/blindspot.py`) | David | 35 episodios/año donde hay pico de `w` fuera del horizonte de 24 h; cota **superior** 2.37 pts/año | GO al experimento 48 h |
+| **Tablas ricas mes×hora×dow(7)** (`work/build_tables_rich.py` → `params_rich.json`) | Jan | MAE net **67 vs 91 kW** de las tablas viejas; solo datos reales, pesos por fracción imputada, fallbacks para Nov25/Ago26. **Mismo score que tablas viejas (6.12)** | Mejor base de datos, pero **no es palanca de score** |
+| **LightGBM t+1..t+24** (`work/train_lgbm.py`, `lgbm_agent.py`, `eval_lgbm.py`) | Pei | **+0.002 local** vs tablas+memoria (umbral de envío: +0.02) | **Descartado**. El LP no es sensible al error de forecast: decide con `w` (exacto) y SOC |
+| **Factorial 48 h + prof_w** (días 18–24) | Jan | **−0.59** (5.53) — contaminado: el eval local trunca `preus_properes_24h` al final de ventana (`environment.py:68`) y el LP retiene SOC para horas "caras" fabricadas | No adoptar tal cual |
+| **Retest 48 h limpio** (`work/retest48.py`: corre sobre días reales 11–20, puntúa 11–17; A=tablas viejas, B=ricas, C=ricas+48h) | David | **A = B = C = 5.534** → el horizonte 48 h es **neutro**, sin artefacto de cola (el −0.59 de Jan era puro truncado del eval) | **Palanca horizonte: cerrada** |
+| **Réplica 72 h del dashboard oficial** (`work/replica_72h.py`, ventana Sep 18–20) | David | Patrón cualitativo idéntico al servidor: cargas ~+500 kW de mañana, descargas −500 kW en picos vespertinos, ciclos SOC 0→100→0, arranque 50% · score 5.87 en la ventana | **Entorno local validado como oráculo** del servidor → `evaluate_local.py` autorizado como juez de envíos |
+
+**Síntesis de la ola**: el score del MPC está limitado por la **estructura del problema** (batería 2 MWh vs carga ~29 MWh/día), no por forecast, horizonte ni hiperparámetros. Las 6 palancas medidas dan 0. Lo único pendiente con valor esperado > 0 es robustez y no romper nada.
