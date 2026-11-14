@@ -25,8 +25,17 @@ class BatteryAgent:
         self.kappa = params.get("kappa", 0.5)             # terminal value scale
         self.beta = params.get("beta", 0.4)               # forecast correction damping
         self.beta_mem = params.get("beta_mem", 0.6)       # history-ratio damping
+        self.h_extra = int(params.get("h_extra", 0))      # profile-only hours beyond the
+                                                          # exact 24h price/co2 window
+        self.prof_co2 = np.array(params.get("prof_co2", np.zeros((12, 24))))
+        self.prof_price = np.array(params.get("prof_price", np.zeros((12, 24))))
         self.mem = {}                                     # hour-of-day -> list of observed ratios
         self.last_ts = None
+        self.w_hist = {}                                  # ts -> known w (exact when within 24h window)
+        self.ext_mix = params.get("ext_mix", 0.5)         # 0=monthly profile, 1=pure persistence
+        self.reserve_kwh = params.get("reserve_kwh", 0.0) # evening SOC floor at horizon end
+        self.reserve_hours = tuple(params.get("reserve_hours", (17, 18, 19, 20, 21, 22, 23)))
+        self.reserve_ratio = params.get("reserve_ratio", 1.25)  # gate: far peak > ratio*near peak
 
     # ---------- forecasting ----------
     def _profile(self, ts):
@@ -71,7 +80,7 @@ class BatteryAgent:
         return np.maximum(net, 0.0), np.maximum(pv, 0.0)
 
     # ---------- LP ----------
-    def _solve(self, w, net_f, soc0, cv):
+    def _solve(self, w, net_f, soc0, cv, soc_end_min=0.0):
         H = len(w)
         n = 4 * H
         c = np.zeros(n)
@@ -90,13 +99,16 @@ class BatteryAgent:
             else:
                 A_eq[k, 3 * H + k - 1] = -1.0   # -soc[k]
 
-        A_ub = np.zeros((H, n))
-        b_ub = np.zeros(H)
+        A_ub = np.zeros((H + 1, n))
+        b_ub = np.zeros(H + 1)
         for k in range(H):
             A_ub[k, k] = 1.0                    # p_c
             A_ub[k, H + k] = -1.0               # -p_d
             A_ub[k, 2 * H + k] = -1.0           # -g
             b_ub[k] = -net_f[k]                 # p_c - p_d - g <= -net  <=>  g >= net + p
+        # soc[H] >= soc_end_min  ->  -soc[H] <= -soc_end_min
+        A_ub[H, 3 * H + H - 1] = -1.0
+        b_ub[H] = -soc_end_min
 
         bounds = ([(0, PMAX)] * H + [(0, PMAX)] * H + [(0, 5000)] * H +
                   [(0.0, CAP)] * H)
@@ -130,24 +142,58 @@ class BatteryAgent:
             if self.last_ts is None or ts - self.last_ts == pd_offset(1):
                 self._update_memory(ts - pd_offset(1), last_net, last_pv)
             self.last_ts = ts
-            net_f, pv_f = self._forecast(ts, H, last_net, last_pv)
-        else:
-            net_f, pv_f = self._forecast(ts, H, None, None)
-        net_f = np.maximum(net_f - pv_f, 0.0)
 
         soc0 = float(np.clip(obs.get("soc_kwh", 1000.0), 0.0, CAP))
         w = co2 + self.gamma * price
         w = np.nan_to_num(w, nan=0.10)
+        for k in range(H):
+            self.w_hist[ts + pd_offset(k)] = float(w[k])
+
+        # extend horizon beyond the exact 24h window: blend monthly-mean profile with
+        # persistence (w of yesterday-same-hour, which lies inside the exact window)
+        H_total = H + int(self.h_extra)
+        if H_total > H:
+            ext = np.zeros(H_total - H)
+            for j in range(len(ext)):
+                tau = ts + pd_offset(H + j)
+                w_month = (self.prof_co2[tau.month - 1, tau.hour]
+                           + self.gamma * self.prof_price[tau.month - 1, tau.hour])
+                w_pers = self.w_hist.get(tau - pd_offset(24))
+                if w_pers is None:
+                    ext[j] = w_month
+                else:
+                    ext[j] = self.ext_mix * w_pers + (1.0 - self.ext_mix) * w_month
+            w = np.concatenate([w, ext])
+
+        net_f, pv_f = self._forecast(ts, H_total, last_net, last_pv)
+        net_f = np.maximum(net_f - pv_f, 0.0)
 
         # terminal value: worth of stored energy ~= discounted best future w
-        if H >= 4:
+        if H_total >= 4:
             w_sorted = np.sort(w)
-            ref = float(np.mean(w_sorted[-min(4, H):]))
+            ref = float(np.mean(w_sorted[-min(4, H_total):]))
         else:
-            ref = float(np.max(w)) if H else 0.0
+            ref = float(np.max(w)) if H_total else 0.0
         cv = self.kappa * ETA_D * ref
 
-        p = self._solve(w, net_f, soc0, cv)
+        # evening reserve, gated on the blindspot condition: estimated far peak
+        # (t+24..t+47) must clearly exceed the best remaining visible peak
+        soc_end_min = 0.0
+        if self.reserve_kwh > 0 and getattr(ts, "hour", None) in self.reserve_hours:
+            far_vals = []
+            for j in range(24):
+                tau = ts + pd_offset(H + j)
+                w_month = (self.prof_co2[tau.month - 1, tau.hour]
+                           + self.gamma * self.prof_price[tau.month - 1, tau.hour])
+                w_pers = self.w_hist.get(tau - pd_offset(24))
+                far_vals.append(w_month if w_pers is None
+                                else self.ext_mix * w_pers + (1.0 - self.ext_mix) * w_month)
+            far = float(np.max(far_vals))
+            near = float(np.max(w[:H]))
+            if far > self.reserve_ratio * near:
+                soc_end_min = self.reserve_kwh
+
+        p = self._solve(w, net_f, soc0, cv, soc_end_min=soc_end_min)
         if p is None:
             # fallback greedy
             w0 = w[0]

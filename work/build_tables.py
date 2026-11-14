@@ -37,11 +37,41 @@ for m in range(12):
 def monthly_mean(col):
     return df.groupby("month")[col].mean()
 
+# monthly hour-mean price/co2 profiles for horizon extension (blindspot fix)
+prof_co2 = np.zeros((12, 24))
+prof_price = np.zeros((12, 24))
+cntm = np.zeros(12)
+for m, g in df.groupby("month"):
+    cntm[m - 1] = len(g)
+    prof_co2[m - 1] = g.groupby("hour")["co2_kg_per_kwh"].mean().values
+    prof_price[m - 1] = g.groupby("hour")["precio_eur_per_kwh"].mean().values
+glob_co2 = df.groupby("hour")["co2_kg_per_kwh"].mean().values
+glob_price = df.groupby("hour")["precio_eur_per_kwh"].mean().values
+for m in range(12):
+    if cntm[m] == 0:  # missing month (e.g., November): interpolate neighbours
+        lo = (m - 1) % 12
+        hi = (m + 1) % 12
+        src = [x for x in (lo, hi, lo, hi) if cntm[x] > 0]
+        prof_co2[m] = np.mean([prof_co2[x] for x in src], axis=0)
+        prof_price[m] = np.mean([prof_price[x] for x in src], axis=0)
+# fill any residual NaN hours
+for arr, gb in ((prof_co2, glob_co2), (prof_price, glob_price)):
+    for m in range(12):
+        for h in range(24):
+            if np.isnan(arr[m, h]):
+                arr[m, h] = gb[h]
+
 # Damped weekly correction: recent 3 weeks vs profile mean per dow
 params = {
     "prof_net": np.round(prof_net, 2).tolist(),
     "prof_pv": np.round(prof_pv, 2).tolist(),
+    "prof_co2": np.round(prof_co2, 5).tolist(),
+    "prof_price": np.round(prof_price, 5).tolist(),
     "gamma_default": 0.264,
+    "kappa": 0.0,
+    "beta": 0.4,
+    "beta_mem": 0.6,
+    "h_extra": 24,
 }
 (HERE / "params.json").write_text(json.dumps(params))
 print("saved params.json")

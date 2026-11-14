@@ -39,9 +39,9 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 
 **Ideas en cola (prioridad)**
 
-1. **Horizonte >24 h** con perfil mensual de `w` — el LP termina ciego cada medianoche.
+1. ~~Horizonte >24 h~~ — **NO-GO (experimento Pei, 14/11)**: probados 5 mecanismos sobre el LP, todos ≤ 0 vs baseline 6.118: (a) extensión w con perfil mensual −0.43, (b) mezcla con persistencia −0.07…−0.43, (c) reserva SOC fija por la tarde −0.18…−0.96, (d) reserva SOC *gated* (solo si pico lejano > ratio·pico visible, 27 configs) −0.01…−0.52, (e) valor terminal basado en pico lejano −0.32…−1.30. **Por qué**: la batería cicla ~2000 kWh/día (throughput limitante); guardar para el pico de mañana cuesta igual valor hoy (picos diarios ≈ mismos w) y bloquea la recarga de mediodía. El bound de blindspot.py (2.37 pts) asumía 1000 kWh recolocables por episodio — en la práctica el LP ya descarga lo que vale la pena dentro de la ventana y la recolocación neta es ~0. Con el oracle a +0.04, el MPC de 24 h está en su techo estructural. Scripts: `work/sweep48.py`, `work/sweep_reserve.py`, `work/sweep_gate.py`. Agente revertido a la config congelada (h_extra=0, reserve=0) — verificado 6.118 / 0 infracciones.
 2. ~~Forecast más fino del net-load~~ — **DESCARTADO (experimento Pei, 14/11)**: LightGBM directo t+1..t+24 (20 features observables, in_hidden_week==0, pesos imputed_frac) da **+0.002 local** vs tablas+memoria (umbral +0.02). El LP no es sensible a errores de forecast de load (±25 kW): las decisiones las manda el paisaje w[t] conocido. Ver `work/train_lgbm.py`, `work/lgbm_agent.py`, `work/eval_lgbm.py`.
-3. Revisar patrón de ciclos: el SOC toca 0/100 a menudo — ¿el corte a 24 h deja valor sobre la mesa?
+3. Revisar patrón de ciclos: el SOC toca 0/100 a menudo — ¿el corte a 24 h deja valor sobre la mesa? → **respondido por el experimento 1: no** (ver arriba).
 
 ## 4. Log de envíos
 
