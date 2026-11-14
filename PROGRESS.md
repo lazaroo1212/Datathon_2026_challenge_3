@@ -54,6 +54,10 @@ the proxy underestimates slightly; hidden test weeks score better.
 
 - Starter heuristic agent (`starter_kit/agent.py`): **mean score 1.75** on pseudo-test
   windows (with occasional infractions).
+- Same agent with the OFFICIAL penalty (-1.00/infr, `evaluate_local.py`): mean 1.48,
+  concatenated -5.58, **7 infractions** (3 of them in the 2026-03 window). The
+  platform reported 2.16 for the tutorial — the exact per-infraction penalty of the
+  server is still unknown; keep agents at 0 infractions regardless.
 
 ## 5. Our agent — MPC with LP (`work/mpc_agent.py` + `work/params.json`)
 

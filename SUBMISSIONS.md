@@ -22,25 +22,26 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 
 | Franja | Ventana | Usados | Restantes |
 |---|---|---|---|
-| Torn 1 (sábado día) | hasta 21:00 | **3**¹ | 7 |
+| Torn 1 (sábado día) | hasta 21:00 | **4**¹ | 6 |
 | Torn 2 (sábado noche) | 21:00 → dom 08:00 | 0 | 10 |
 | Torn 3 (domingo día) | desde 08:00 | 0 | 10 |
 
-¹ #2 = duplicado accidental del #1. No afecta al score (cuenta el mejor), pero gasta cuota.
+¹ #2 = duplicado accidental del #1. #4 (κ=0) salió idéntico al #1. Ninguno dañó el score (cuenta el mejor), pero cada uno gastó cuota.
 
-> Total gastado: **3/30**. Cada envío restante debe tener hipótesis y métrica de éxito.
+> Total gastado: **4/30**. Cada envío restante debe tener hipótesis y métrica de éxito.
 
-## 3. Estado actual (tras 3 envíos)
+## 3. Estado actual (tras 4 envíos)
 
-- **Mejor score: 6.43** (dos agentes distintos dan 6.43). El tier **6.44 empieza en 6.437 reales** → nos faltan solo **+0.009**.
-- **Lección clave**: todos los 6.43 están sobre la **misma recta iso-score**. Bajar γ deslizó el reparto (+CO₂, −costo) sin mover el total (+0.0001 reales). La γ teórica `γ = 0.3·CO₂_base/(0.7·Costo_base) ≈ 0.264` es la **linealización exacta** del score. → **Eje γ: muerto, no gastar más envíos.**
-- Para superar la recta hay que **desplazar la frontera** (estructura): mejores forecasts, horizonte >24 h, mejor uso del ciclo.
+- **Mejor score: 6.43** · el último envío es también el mejor → **blindados** ante cualquier regla de ranking (mejor o último).
+- **Espacio de hiperparámetros AGOTADO** (verificado en servidor y sweeps): γ ✗ · κ ✗ · β ✗ · β_mem ✗ — el MPC puntúa 6.43 con cualquier configuración de estos knobs. Agente **robusto**, no afinado por suerte.
+- **Configuración canónica**: `submission/` (κ=0, γ=0.264). `best_v1/` congelado como referencia. No hace falta best_v2.
+- El tier **6.44 empieza en 6.437 reales** (+0.009). Solo se alcanza con **estructura**, no parámetros.
 - **Techo estimado**: oracle con foresight perfecto ≈ 6.16 local → **~6.47 en plataforma** (offset +0.31 observado). Ahí es donde apuntamos.
 
 **Ideas en cola (prioridad)**
 
-1. **Horizonte >24 h** con perfil mensual de `w` — el LP termina ciego cada medianoche.
-2. Forecast más fino del net-load (mejorar donde el LP decide mal, no el MAE medio).
+1. **Horizonte 48 h** con tablas ricas de Jan (`params_rich.json`, hour × dow × month, `in_hidden_week == 0`).
+2. Forecast ML de Pei (LightGBM consumo/solar t+1..t+24) — **umbral de envío: batir a tablas+memoria por ≥0.02** en `evaluate_local.py` (el techo oracle dice que no invertir más de media jornada).
 3. Revisar patrón de ciclos: el SOC toca 0/100 a menudo — ¿el corte a 24 h deja valor sobre la mesa?
 
 ## 4. Log de envíos
@@ -51,6 +52,7 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 | 1 | sab 14:13 | MPC v1 (0.264) | **6.43** | 5.95% | 7.54% | 0 | mejor actual · proxy local 6.12 · 21è |
 | 2 | sab ~14:1x | duplicado accidental del #1 | 6.43 | = | = | 0 | solo gasta cuota |
 | 3 | sab tarde | MPC v2 (0.259) | **6.43** | 5.96% | 7.52% | 0 | +0.0001 reales → **afinar γ no mueve el score** |
+| 4 | sab tarde | MPC v1 κ=0 (0.264) | **6.43** | 5.95% | 7.54% | 0 | idéntico al gramo al #1 (4,276.3 kg / 8,957.45 €) → **κ tampoco mueve nada** |
 
 *Datos exactos por si hacen falta: #1 = 4,276.3 kg / 8,957.45 € · #3 = 4,282.3 kg / 8,934.47 € · líder del tier 6.44 ≈ 5.99% / 7.48% = 6.437 reales.*
 
@@ -74,6 +76,12 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 - **Hipótesis**: bajar γ desliza el reparto hacia el punto del líder (más CO₂, menos costo) con el mismo total.
 - **Resultado**: 6.43 (5.96% CO₂ / 7.52% costo · 4,282.3 kg · 8,934.47 €) · 0 infracciones.
 - **Conclusión**: +0.0001 pts reales. El γ teórico era exacto; **no enviar más versiones de γ**. Siguiente palanca: estructura (horizonte >24 h).
+
+### Envío #4 — MPC v1 con κ=0 (γ 0.264)
+
+- **Hipótesis**: κ 0.5→0.0 podría cambiar decisiones de final de horizonte.
+- **Resultado**: 6.43, **idéntico al gramo al #1** (4,276.3 kg / 8,957.45 €). La trayectoria en el servidor no cambió.
+- **Conclusión**: κ muerto. Con γ y κ fuera, **el espacio de hiperparámetros está agotado** — las siguientes palancas son estructurales (horizonte 48 h, forecast ML).
 
 ### Plantilla para próximos envíos (copiar y rellenar)
 
