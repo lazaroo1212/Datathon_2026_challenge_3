@@ -50,3 +50,11 @@ El detalle técnico del progreso está en [`PROGRESS.md`](PROGRESS.md).
 | H6 | Submit 2: heurística por reglas (validada en local) |
 | Turno noche | MPC completo (Pei) + modelos afinados; 2–3 submits escalonados |
 | Turno domingo | Robustez (NaN, huecos, timestamps raros), última pulida, reservar 2–3 intentos para el final |
+
+16:00
+👥 Qué se hace ahora con esto
+Jan → siguiente paso natural: generar las tablas hour × dow × month (params_rich.json) filtrando in_hidden_week == 0 (solo datos reales), en el formato del params.json del agente. Es la materia prima del experimento de horizonte-48h.
+Pei → ahora sí tiene features de verdad para el test de LightGBM (lags, rollings, festivos, cíclicas). Recordatorio del criterio: debe batir a las tablas+memoria en eval_windows.py por ≥0.02 (el oracle dice que el techo es +0.04 — no invertir más de media jornada). Truco: entrenar con in_hidden_week == 0 y ponderar por imputed_frac las filas parcialmente imputadas.
+David → sigue pendiente tu envío 4 (κ=0): cp work/params.json submission/params.json → zip → check → subir. Es la única palanca inmediata que hay; el dataset no cambia el agente actual hasta que el experimento 48h esté validado.
+Elayne → añade al log: "master dataset de Jan verificado (0 mismatches vs hourly.csv) — base para forecast ML y tablas ricas".
+¿Ha salido ya el resultado del envío 4 con κ=0? Con eso decidimos si congelamos best_v2 o revertimos antes de que Pei termine el experimento grande.
