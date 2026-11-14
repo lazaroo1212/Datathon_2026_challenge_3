@@ -30,6 +30,14 @@ the proxy underestimates slightly; hidden test weeks score better.
 - Result: 5993 rows, 2025-09-01 → 2026-08-16. True test days (last 7 of month) are
   fully absent from train → we validate on **pseudo-test windows = days 18–24** of
   each month (closest proxy).
+- **[log Elayne, 14-11]** Master dataset de Jan verificado (0 mismatches vs
+  `work/hourly.csv`) — base para forecast ML (features de Pei) y tablas ricas.
+- **[log Elayne, 14-11]** `evaluate_local.py` (raíz del repo): evaluador oficial
+  exacto (0.7·ΔCO₂ + 0.3·ΔCost − 1.0·infr) sobre `environment.py` local; ventana
+  concatenada estilo plataforma + desglose por mes. Uso:
+  `& $env:USERPROFILE\anaconda3\python.exe evaluate_local.py work/mpc_agent.py`
+  (el `python` del PATH no tiene pandas; usar anaconda). MPC v1 → concat 5.62 /
+  media 6.12, 0 infr.
 
 ## 3. Pattern analysis (`work/analyze.py`)
 
