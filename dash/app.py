@@ -139,9 +139,9 @@ tab1, tab2, tab3, tab4 = st.tabs(
 with tab1:
     st.subheader("Caso de inversión: batería de 2 MWh operada por MPC")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Score oficial", "6.62 pts", "0 infracciones · 5 envíos")
-    c2.metric("CO₂ evitado (12 sem)", "4.403 kg", "−6,13% vs baseline")
-    c3.metric("Factura ahorrada", "9.200 €", "−7,75% vs baseline")
+    c1.metric("Score oficial", "6.43 pts", "0 infracciones · agente honesto")
+    c2.metric("CO₂ evitado (12 sem)", "4.276 kg", "−5,95% vs baseline")
+    c3.metric("Factura ahorrada", "8.957 €", "−7,54% vs baseline")
     c4.metric("Runtime servidor", "3,4 s", "de 60 s permitidos")
 
     st.divider()
@@ -198,7 +198,7 @@ with tab1:
                                 options=[100, 150, 200, 250, 300, 350, 400], value=200)
     # anclado a los resultados OFICIALES del servidor (12 semanas = 84 días cubren el año);
     # anualización directa ×365/84; los sliders escalan por ratio simulado (coherencia)
-    eur_test_of, kg_test_of = 9200.33, 4403.3
+    eur_test_of, kg_test_of = 8957.45, 4276.3
     if cap_sel == 2000 and pmax_sel == 500:
         factor = 1.0
     else:
@@ -233,7 +233,7 @@ with tab1:
         f"~{co2_anual_kg/1000:.1f} t CO₂/año y ~{ahorro_eur_anual:,.0f} €/año. "
         f"El payback a {euro_kwh} €/kWh es {payback:.1f} años — viabilidad financiera "
         f"dependiente del coste real de instalación.",
-        "Oficial en servidor: 4.403,3 kg CO₂ y 9.200,33 € ahorrados en 12 semanas (84 días "
+        "Oficial en servidor: 4.276,3 kg CO₂ y 8.957,45 € ahorrados en 12 semanas (84 días "
         "que cubren el año uniformemente) → extrapolación ×365/84. What-if: re-simulación "
         "MPC sobre semana real, escalada por ratio vs. la config oficial. Curva de "
         "capacidad: 4 puntos simulados.",
@@ -316,26 +316,27 @@ with tab3:
         "dcost": [7.57, 7.50, 7.55, 7.52, 7.50, 7.50, 7.50, 7.54],
     })
     lb["score"] = 0.7 * lb["dco2"] + 0.3 * lb["dcost"]
-    SCORE_REF = 6.62
-    xs = np.linspace(lb["dcost"].min() - 0.15, lb["dcost"].max() + 0.25, 50)
+
+    SCORE_REF = 6.43
+    xs = np.linspace(lb["dcost"].min() - 0.15, lb["dcost"].max() + 0.15, 50)
     ys = (SCORE_REF - 0.3 * xs) / 0.7
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=xs, y=ys, mode="lines",
-                             name=f"recta iso-score 0.7·ΔCO₂ + 0.3·ΔCost = {SCORE_REF} (nuestro agente v2)",
+                             name=f"recta iso-score 0.7·ΔCO₂ + 0.3·ΔCost = {SCORE_REF}",
                              line=dict(color="gray", dash="dash")))
-    fig.add_trace(go.Scatter(x=[7.75], y=[6.13], mode="markers+text",
-                             name="Yukiyuk v2 (6.62)", text=["Yukiyuk v2 · 6.62"],
+    fig.add_trace(go.Scatter(x=lb["dcost"], y=lb["dco2"], text=lb["equipo"],
+                             mode="markers+text", name="equipos 6.43 (14/11)",
+                             textposition="top center", textfont_size=9,
+                             marker=dict(size=10, color=lb["score"], colorscale="Viridis",
+                                         showscale=False)))
+    fig.add_trace(go.Scatter(x=[7.54], y=[5.95], mode="markers+text",
+                             name="Yukiyuk (nosotros)", text=["Yukiyuk"],
                              textposition="top center",
-                             marker=dict(size=18, color="red", symbol="star"),
-                             hovertemplate="Yukiyuk v2: ΔCO₂ 6.13%% · ΔCost 7.75%% · score 6.62<extra></extra>"))
-    # familia 6.43 (v1): toda la meseta anterior queda bajo la nueva recta
-    fig.add_trace(go.Scatter(x=[7.54, 7.57, 7.50, 7.55, 7.52, 7.50, 7.50, 7.50],
-                             y=[5.95, 5.96, 5.97, 5.95, 5.96, 5.97, 5.97, 5.97],
-                             mode="markers", name="pelotón 6.43 (14/11)",
-                             marker=dict(size=9, color="lightseagreen", opacity=0.7)))
-    fig.update_layout(title="Leaderboard 14/11: la recta iso-score de Yukiyuk v2 (6.62) domina "
-                            "todo el pelotón 6.43 — gamma solo desliza el punto sobre cada recta",
+                             marker=dict(size=16, color="red", symbol="star"),
+                             hovertemplate="Yukiyuk: ΔCO₂ 5.95%% · ΔCost 7.54%% · score 6.43<extra></extra>"))
+    fig.update_layout(title="Leaderboard real 14/11: todos los 6.43 caen sobre la MISMA recta "
+                            "iso-score — γ solo desliza el punto a lo largo de ella",
                       xaxis_title="ΔCost (%)", yaxis_title="ΔCO₂ (%)", height=480)
     st.plotly_chart(fig, use_container_width=True)
 
