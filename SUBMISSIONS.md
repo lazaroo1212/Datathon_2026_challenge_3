@@ -135,3 +135,40 @@ Check con el envío #1: `0.7 × 5.95 + 0.3 × 7.54 = 4.165 + 2.262 = 6.43 ✓`
 | **Réplica 72 h del dashboard oficial** (`work/replica_72h.py`, ventana Sep 18–20) | David | Patrón cualitativo idéntico al servidor: cargas ~+500 kW de mañana, descargas −500 kW en picos vespertinos, ciclos SOC 0→100→0, arranque 50% · score 5.87 en la ventana | **Entorno local validado como oráculo** del servidor → `evaluate_local.py` autorizado como juez de envíos |
 
 **Síntesis de la ola**: el score del MPC está limitado por la **estructura del problema** (batería 2 MWh vs carga ~29 MWh/día), no por forecast, horizonte ni hiperparámetros. Las 6 palancas medidas dan 0. Lo único pendiente con valor esperado > 0 es robustez y no romper nada.
+
+## 8. HARD MODE (pestaña independiente, cuota propia: 10+10+10)
+
+**Qué cambia**: solar ×12, batería 6.000 kWh / ±1.500 kW, obs con forecast de solo 3 h
+( el resto se predice), meteo en `noves_dades_5min` (irradiancia, temps ambient/panel,
+vent) y `cap_max_kwh`/`power_max_kw` en el obs. Ranking público sobre 1.008 h (mitad
+del test — mismo patrón de máscara que el estándar; NO se explota, decisión de equipo).
+Baselines implícitos del servidor: ≈60.248 kg CO₂ / ≈94.988 € → γ = 0.272.
+
+### Log de envíos Hard
+
+| # | Cuándo | Agente | **Score** | ΔCO₂ | ΔCost | Infr. | Notas |
+|---|---|---|---|---|---|---|---|
+| H1 | sab ~18:35 | v0 (MPC estándar re-constante, PV×12, horizonte perfil) | 19.05 | 17.88% | 21.78% | 0 | primer contacto; envío accidental al estándar dio 583 infracciones (−116.6) — lección: clamps duros |
+| H2 | sab tarde | v1 (forecasts ridge aprendidos: w, load, solar) | **21.52** | 19.89% | 25.33% | 0 | ΔCO₂ −3pp vs líder (22.94) |
+| H3 | dom ~10:00 | **v2 (fix excedente: net_f sin recortar a 0 → cargar con solar sobrante es gratis, como en la física real)** | **22.2** | 20.59% | 25.96% | 0 | **+0.68 sobre v1, mayor salto honesto del datathon** |
+
+### Experimentos Hard (sin coste de envío)
+
+| Experimento | Resultado | Decisión |
+|---|---|---|
+| Oracle local (foresight perfecto, net sin recortar) | ≈20.05 proxy (pre-fix) | tras el fix el techo local sube; el top 24.36 ≈ bound recalibrado → el hueco restante es forecast |
+| LGBM solar directo multi-horizonte (train honesto días 1–17) | MAE directo 83 kW (vs 156 del ridge) PERO simulación **17.65 (−0.34)** | **NO-GO**: desfase train/servido en lags + el score concentra sensibilidad en transiciones crepúsculo |
+| Modelos separados CO₂/precio (pre-fix) | w-MAE 0.0173→0.0166, score sin mejora | re-probar SOBRE v2 (el fix puede cambiar la sensibilidad) |
+| γ=0.272 (del baseline implícito) | ya en v1 | correcto |
+
+### Lecciones Hard
+
+1. **El fix del excedente**: v1 recortaba `net_f` a 0 → el LP pagaba `w·p_c` por cargar
+   con solar sobrante que en la realidad es gratis (export = 0 €, 0 kg). Corrección:
+   `net_f = lf − pf` sin clip; el LP con `g ≥ net_f + p_c − p_d` y `g ≥ 0` ya gestiona
+   gratis el excedente. +0.68 en servidor con UNA línea de código.
+2. **Clamp oficial desde obs**: `cap_max_kwh` / `power_max_kw` (con fallback a constantes).
+3. La meteo en LGBM ayudó al MAE (+3–7%) pero no al score — mismo patrón que estándar.
+4. Envío accidental al estándar con agente Hard: 583 infracciones, −116.6 pts — el
+   contador de cuota es independiente pero el daño reputacional no; verificar siempre
+   la pestaña antes de Trametre.
