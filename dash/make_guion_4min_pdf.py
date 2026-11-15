@@ -17,6 +17,7 @@ MD = HERE / "guion_4min.md"
 OUT = HERE / "Guion_Datathon_UPC_Yukiyuk_4min.pdf"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+NEGRO = (40, 40, 40)
 LM = 18
 
 PAGINAS = [
