@@ -1,0 +1,20 @@
+{
+ "features": [
+  "mes",
+  "dow",
+  "es_finde",
+  "hora_sin",
+  "hora_cos",
+  "pv_t",
+  "pv_mean3",
+  "pv_lag24",
+  "irr_t",
+  "irr_mean3",
+  "temp_panel_t",
+  "temp_amb_t",
+  "wind_t",
+  "horizon",
+  "hora_tk",
+  "pp_tk"
+ ]
+}
