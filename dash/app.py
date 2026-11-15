@@ -290,9 +290,12 @@ with tab2:
                      labels=dict(x="mes", y="hora del día (h)", color="kg CO₂/h evitados"),
                      title="CO₂ evitado medio (kg CO₂/h) por hora y mes — sigue al mix eléctrico, no al precio")
     st.plotly_chart(fig4, use_container_width=True)
-    st.caption("Los dos mapas tienen forma distinta: el €/h sigue al precio PVPC (picos "
-               "vespertinos), el kg CO₂/h sigue al mix peninsular (picos nocturnos de gas). "
-               "Una batería bien operada captura ambos porque el MPC optimiza w = CO₂ + γ·precio.")
+    st.caption("Los dos mapas muestran patrones casi idénticos (picos 18–22 h y pico "
+               "matinal) — y no es casualidad: cuando la batería descarga, reduce la "
+               "importación y gana los dos beneficios a la vez (menos € y menos CO₂). "
+               "Nuestro MPC optimiza un objetivo combinado w = CO₂ + γ·precio, y en el "
+               "mercado español el precio y el carbono van de la mano: ahorrar dinero y "
+               "descarbonizar no compiten — la misma descarga lo consigue simultáneamente.")
     caja_decision(
         2,
         "Operar la batería como MPC rodante de 24 h sobre el objetivo combinado w = CO₂ + "

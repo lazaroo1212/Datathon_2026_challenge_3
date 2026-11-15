@@ -46,12 +46,15 @@ Mostrar: slider 500 → 4000 → volver a 2000. Señalar la línea vertical "bat
 
 > "Segunda decisión: cómo operarla. El agente planifica con optimización lineal sobre
 > 24 horas: carga al mediodía —energía barata y limpia— y descarga en los picos de la
-> tarde. El mapa de calor muestra dónde se gana el dinero: concentrado entre las 18 y
-> las 21 horas. Y tiene forma distinta para euros y para CO₂ — porque el precio de la
-> luz y el mix eléctrico no siguen el mismo reloj, y nuestro control captura los dos.
-> **Decisión 2: operarla con control predictivo, no con reglas fijas.**"
+> tarde. El mapa de calor muestra dónde se gana el valor: concentrado entre las 18 y
+> las 21 horas. Y fíjense: euros y CO₂ siguen el mismo patrón — cuando la batería
+> descarga, gana los dos beneficios a la vez. Nuestro control optimiza un objetivo
+> combinado, y en el mercado español el precio y el carbono van de la mano.
+> **Reducir costes y descarbonizar no compiten: la misma descarga lo consigue
+> simultáneamente.**"
 
-Mostrar: gráfico de balance (izquierda) 5 s, SOC (derecha) 5 s, los dos heatmaps.
+Mostrar: gráfico de balance (izquierda) 5 s, SOC (derecha) 5 s, los dos heatmaps
+(subeñalar que los patrones coinciden).
 
 ---
 
