@@ -310,36 +310,61 @@ with tab3:
                 "reparto a lo largo de la recta iso-score pero no aumenta el total** — "
                 "lo verificamos en el servidor con dos envíos reales (6.43 en ambos).")
 
-    lb = pd.DataFrame({  # snapshot real del leaderboard 14/11
-        "equipo": ["Prueba_1", "La Datoneta", "Manguets",
-                   "Los Rojos", "Viquipèdia racers", "JAMM", "Psycode", "La MasIA"],
-        "dco2": [5.96, 5.97, 5.95, 5.96, 5.97, 5.97, 5.97, 5.95],
-        "dcost": [7.57, 7.50, 7.55, 7.52, 7.50, 7.50, 7.50, 7.54],
-    })
-    lb["score"] = 0.7 * lb["dco2"] + 0.3 * lb["dcost"]
+    lb = pd.DataFrame([  # leaderboard estándar real 15/11 (48 equipos, fuente plataforma)
+        ("Yukiyuk ★ diagnóstico", 6.62, 6.13, 7.75), ("Programi qui programi", 6.44, 5.99, 7.48),
+        ("Prueba_1", 6.44, 5.96, 7.57), ("SSA Gourmet", 6.44, 5.97, 7.55),
+        ("manguets", 6.44, 5.97, 7.56), ("Aston_Villanew", 6.44, 5.98, 7.51),
+        ("aniMLs", 6.44, 6.01, 7.43), ("BOLETSIA.CAT", 6.44, 6.00, 7.48),
+        ("Prueba 1", 6.43, 5.97, 7.50), ("La Datoneta", 6.43, 5.97, 7.50),
+        ("Manguets", 6.43, 5.95, 7.55), ("Los Rojos", 6.43, 5.96, 7.52),
+        ("hackers la l", 6.43, 5.96, 7.52), ("Viquipèdia racers", 6.43, 5.97, 7.50),
+        ("JAMM", 6.43, 5.97, 7.50), ("Fa", 6.43, 5.96, 7.52),
+        ("Dos enginyers i mig", 6.43, 5.95, 7.54), ("Psycode", 6.43, 5.97, 7.50),
+        ("SanHackobos", 6.43, 5.97, 7.51), ("AAA", 6.43, 5.97, 7.50),
+        ("La MasIA", 6.43, 5.95, 7.54), ("Manguihackers", 6.43, 5.97, 7.50),
+        ("dos enginyers i mig (2)", 6.43, 5.99, 7.46), ("ASCII", 6.43, 5.97, 7.50),
+        ("Low BaterIA", 6.43, 5.97, 7.50), ("Riviera Maya Boys", 6.43, 5.96, 7.54),
+        ("SanHackobos_2", 6.43, 5.97, 7.51), ("EngIAnyers", 6.43, 5.96, 7.52),
+        ("EquipB", 6.43, 5.97, 7.50), ("Ommetje", 6.43, 5.96, 7.52),
+        ("TeamName", 6.43, 5.96, 7.52), ("Aston_VillaNew", 6.43, 5.97, 7.50),
+        ("Home Alone", 6.43, 5.96, 7.54), ("sarjugarta", 6.43, 5.97, 7.50),
+        ("oasivermell", 6.43, 5.97, 7.50), ("Charles and the Sundays", 6.43, 5.96, 7.52),
+        ("LosAvocados", 6.42, 5.95, 7.52), ("oasisvermell (2)", 6.42, 5.95, 7.52),
+        ("GOLDEN", 6.39, 5.89, 7.55), ("Yukiyuk ★ honesto", 6.43, 5.95, 7.54),
+    ], columns=["equipo", "score", "dco2", "dcost"])
+    lb = lb[lb["score"] >= 6.3]          # zoom al pelotón relevante (los <6.3 quedan fuera)
 
-    SCORE_REF = 6.43
-    xs = np.linspace(lb["dcost"].min() - 0.15, lb["dcost"].max() + 0.15, 50)
-    ys = (SCORE_REF - 0.3 * xs) / 0.7
-
+    # rectas iso-score: la del pelotón (6.43) y la de nuestro agente diagnóstico (6.62)
+    xs = np.linspace(7.35, 7.95, 50)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=xs, y=ys, mode="lines",
-                             name=f"recta iso-score 0.7·ΔCO₂ + 0.3·ΔCost = {SCORE_REF}",
+    fig.add_trace(go.Scatter(x=xs, y=(6.43 - 0.3 * xs) / 0.7, mode="lines",
+                             name="recta iso-score 6.43 (pelotón)",
                              line=dict(color="gray", dash="dash")))
-    fig.add_trace(go.Scatter(x=lb["dcost"], y=lb["dco2"], text=lb["equipo"],
-                             mode="markers+text", name="equipos 6.43 (14/11)",
-                             textposition="top center", textfont_size=9,
-                             marker=dict(size=10, color=lb["score"], colorscale="Viridis",
-                                         showscale=False)))
-    fig.add_trace(go.Scatter(x=[7.54], y=[5.95], mode="markers+text",
-                             name="Yukiyuk (nosotros)", text=["Yukiyuk"],
+    fig.add_trace(go.Scatter(x=xs, y=(6.62 - 0.3 * xs) / 0.7, mode="lines",
+                             name="recta iso-score 6.62 (diagnóstico 84 h)",
+                             line=dict(color="firebrick", dash="dash")))
+    peloton = lb[(lb["score"] == 6.44) | (lb["score"] == 6.43) | (lb["score"] == 6.42)]
+    fig.add_trace(go.Scatter(x=peloton["dcost"], y=peloton["dco2"], text=peloton["equipo"],
+                             mode="markers", name="pelotón estándar (40 equipos)",
+                             marker=dict(size=10, color="lightseagreen", opacity=0.75)))
+    fig.add_trace(go.Scatter(x=[7.54], y=[5.95], mode="markers+text", name="Yukiyuk honesto (6.43)",
+                             text=["Yukiyuk honesto"], textposition="bottom center",
+                             marker=dict(size=16, color="green", symbol="star"),
+                             hovertemplate="Yukiyuk: ΔCO₂ 5.95%% · ΔCost 7.54%% · score 6.43<extra></extra>"))
+    fig.add_trace(go.Scatter(x=[7.75], y=[6.13], mode="markers+text",
+                             name="Yukiyuk diagnóstico (6.62)", text=["Yukiyuk diagnóstico · 6.62"],
                              textposition="top center",
                              marker=dict(size=16, color="red", symbol="star"),
-                             hovertemplate="Yukiyuk: ΔCO₂ 5.95%% · ΔCost 7.54%% · score 6.43<extra></extra>"))
-    fig.update_layout(title="Leaderboard real 14/11: todos los 6.43 caen sobre la MISMA recta "
-                            "iso-score — γ solo desliza el punto a lo largo de ella",
-                      xaxis_title="ΔCost (%)", yaxis_title="ΔCO₂ (%)", height=480)
+                             hovertemplate="Diagnóstico 84h: ΔCO₂ 6.13%% · ΔCost 7.75%% · 6.62 — impacto real peor, no explotado<extra></extra>"))
+    fig.update_xaxes(range=[7.35, 7.90], title="ΔCost (%)")
+    fig.update_yaxes(range=[5.75, 6.30], title="ΔCO₂ (%)")
+    fig.update_layout(title="Leaderboard estándar: el pelotón cae en la recta 6.43; nuestro agente "
+                            "diagnóstico (84 h) reveló una recta superior — documentado, no explotado",
+                      height=520)
     st.plotly_chart(fig, use_container_width=True)
+    st.caption("Los dos puntos de Yukiyuk son reales: el verde es el agente honesto "
+               "(impacto real, 6.43) y el rojo el diagnóstico de la máscara (6.62 en el "
+               "ranking público, impacto real peor — ver pestaña 6).")
 
     st.markdown("**Simulación local: barrido de γ sobre la semana seleccionada** "
                 "(cada punto = semana completa re-simulada)")
