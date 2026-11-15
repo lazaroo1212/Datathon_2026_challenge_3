@@ -133,7 +133,8 @@ semanas = semanas_disponibles(df)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     ["💰 1 · ¿Comprar la batería?", "🔧 2 · ¿Cómo opera?",
-     "⚖️ 3 · ¿CO₂ o euros?", "🔬 4 · ¿Qué sabemos?", "🧪 5 · Método: cómo llegamos"])
+     "⚖️ 3 · ¿CO₂ o euros?", "🔥 4 · Hard Mode (solar ×12)",
+     "🔬 5 · ¿Qué sabemos?", "🧪 6 · Método: cómo llegamos"])
 
 # ══════════════════════════ TAB 1 · INVERSIÓN ══════════════════════════════
 with tab1:
@@ -371,8 +372,67 @@ with tab3:
         "con 6 valores de γ sobre la semana seleccionada.",
         "Alta — matemática derivable de la fórmula del score y confirmada en producción.")
 
-# ══════════════════════════ TAB 4 · EVIDENCIA ══════════════════════════════
+# ══════════════════════════ TAB 4 · HARD MODE ══════════════════════════════
 with tab4:
+    st.subheader("Hard Mode: ampliación fotovoltaica (solar ×12) y batería ×3")
+    st.markdown(
+        "Escenario avanzado: **solar ×12** (hasta ~1.650 kW, con excedentes gratuitos de "
+        "hasta 1.000 kW al mediodía), **batería de 6.000 kWh / ±1.500 kW**, y el obs solo "
+        "da **3 h** de precio/CO₂ — el resto del día hay que predecirlo. Ranking público "
+        "sobre 1.008 h; 51 equipos.")
+
+    h1, h2, h3, h4 = st.columns(4)
+    h1.metric("Score Hard oficial", "22.79", "ΔCO₂ −21,29% · ΔCost −26,30%")
+    h2.metric("CO₂ evitado", "12.826 kg", "0 infracciones")
+    h3.metric("Progresión del equipo", "19.05 → 22.79", "3 iteraciones en 36 h")
+    h4.metric("Cuota restante", "17 envíos", "de 20 propias del modo")
+
+    st.markdown("**Progresión: tres envíos, tres hallazgos distintos**")
+    prog = pd.DataFrame({
+        "envío": ["v0 · MPC estándar re-parametrizado", "v1 · + forecasts ridge aprendidos",
+                  "v2 · + fix del excedente solar", "v2_sep · + CO₂ y precio separados"],
+        "score": [19.05, 21.52, 22.2, 22.79],
+    })
+    figp = go.Figure()
+    figp.add_trace(go.Bar(x=prog["envío"], y=prog["score"],
+                          marker_color=["#9ec9e2", "#5b9bd5", "#2e75b6", "#1f4e79"],
+                          text=[f"{s:.2f}" for s in prog["score"]], textposition="outside"))
+    figp.add_hline(y=24.37, line_dash="dot", annotation_text="líder actual (24.37)")
+    figp.update_layout(title="Cada envío atacó una hipótesis distinta — el fix del excedente "
+                            "fue el mayor salto (+0.68)",
+                        yaxis_title="Score servidor", height=380)
+    st.plotly_chart(figp, use_container_width=True)
+
+    st.markdown("**El hallazgo clave: el LP pagaba por energía solar gratis.**")
+    st.markdown(
+        "Con la solar ×12, al mediodía la producción supera al consumo (excedente de hasta "
+        "1.000 kW). Cargar la batería dentro de ese excedente **no cuesta nada** (la "
+        "exportación no se paga pero tampoco penaliza). Nuestro primer LP recortaba la "
+        "previsión neta a cero — `net = max(load − pv, 0)` — así que el optimizador "
+        "**creía que cargar costaba dinero** y desperdiciaba el excedente. La corrección "
+        "(`net = load − pv`, sin recortar; la restricción `g ≥ 0` ya gestiona la gratuidad) "
+        "sumó **+0.68 puntos con una línea de código**: física correcta, no más cálculo.")
+    st.markdown(
+        "**Y la lección negativa** (documentada con 3 experimentos): sustituir los "
+        "forecasts ridge por LightGBM con mejor MAE standalone (83→43 kW en consumo, "
+        "156→61 en solar) **empeoró el score** (−0.34 y −1.22 en simulación). El LP es "
+        "sensible a la *estructura* del error en las transiciones crepúsculo, no a su "
+        "media — el modelo compacto de v1 gana donde importa.")
+
+    caja_decision(
+        4,
+        "En el escenario ampliado, operar con MPC que valorice correctamente el excedente "
+        "solar gratuito y predecir el mix eléctrico con modelos separados de CO₂ y precio. "
+        "Siguiente palanca real: ampliar solar, no batería (la curva de la pestaña 1 "
+        "se aplica igual con 6 MWh).",
+        "3 envíos oficiales al ranking Hard (21.52 → 22.2 → 22.79, todos 0 infracciones) "
+        "con hipótesis distintas y verificadas; simulador local calibrado contra el "
+        "servidor; NO-GOs documentados para no repetir caminos.",
+        "Alta — el fix del excedente es física, no ajuste; el hueco restante al líder "
+        "(1.58) atribuible a calidad de forecast, con techo validado por oracle.")
+
+# ══════════════════════════ TAB 5 · EVIDENCIA ══════════════════════════════
+with tab5:
     st.subheader("Todo lo probado, con evidencia")
     ev = pd.DataFrame([
         ["γ (peso CO₂↔€)", "Servidor: envíos 1 vs 3", "+0.0001 pts — recta iso-score exacta", "Cerrado"],
@@ -400,8 +460,8 @@ with tab4:
                 "(mismo patrón de ciclos), 0 infracciones en 4 envíos reales, agente a prueba "
                 "de datos sucios (NaN, horizontes truncados, timestamps string).")
 
-# ══════════════════════════ TAB 5 · MÉTODO ════════════════════════════════
-with tab5:
+# ══════════════════════════ TAB 6 · MÉTODO ════════════════════════════════
+with tab6:
     st.subheader("Cómo llegamos: hipótesis → experimento → medición → decisión")
 
     c1, c2 = st.columns(2)
