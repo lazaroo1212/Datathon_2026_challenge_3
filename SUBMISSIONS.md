@@ -151,6 +151,8 @@ Baselines implícitos del servidor: ≈60.248 kg CO₂ / ≈94.988 € → γ = 
 | H1 | sab ~18:35 | v0 (MPC estándar re-constante, PV×12, horizonte perfil) | 19.05 | 17.88% | 21.78% | 0 | primer contacto; envío accidental al estándar dio 583 infracciones (−116.6) — lección: clamps duros |
 | H2 | sab tarde | v1 (forecasts ridge aprendidos: w, load, solar) | **21.52** | 19.89% | 25.33% | 0 | ΔCO₂ −3pp vs líder (22.94) |
 | H3 | dom ~10:00 | **v2 (fix excedente: net_f sin recortar a 0 → cargar con solar sobrante es gratis, como en la física real)** | **22.2** | 20.59% | 25.96% | 0 | **+0.68 sobre v1, mayor salto honesto del datathon** |
+| H4 | dom 09:18 | **v2_sep (CO2/precio separados sobre v2)** | **22.79** | 21.29% | 26.30% | 0 | +0.59 servidor desde +0.08 local — la amplificación Hard local→servidor es ~7× |
+
 
 ### Experimentos Hard (sin coste de envío)
 
