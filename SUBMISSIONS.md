@@ -174,3 +174,15 @@ Baselines implícitos del servidor: ≈60.248 kg CO₂ / ≈94.988 € → γ = 
 4. Envío accidental al estándar con agente Hard: 583 infracciones, −116.6 pts — el
    contador de cuota es independiente pero el daño reputacional no; verificar siempre
    la pestaña antes de Trametre.
+
+### Jugada 2 — LGBM load/pv alineado (v3_net): NO-GO
+- Hipótesis: el NO-GO del LGBM solar se debía al desfase train/servido en los lags
+  (pv_hist vacío al inicio). Reentrenado con features idénticas al runtime (30% de
+  filas con lag=perfil, como servirá el agente) + targets separados load/pv.
+- MAE alineado: load 43.4 kW, pv 61.2 kW (mejores registros hasta la fecha).
+- Simulación: **18.99 vs 20.21 (−1.22)** → NO-GO. Tercer experimento que confirma:
+  **el MAE standalone no predice el score** — el LP es sensible a la estructura del
+  error en las transiciones crepúsculo, y los errores no paramétricos del LGBM
+  dañan ahí más que los suaves del ridge.
+- Decisión: v2_sep (22.79 servidor) queda como flagship de Hard Mode. Línea de
+  forecast cerrada (3 experimentos: solar LGBM, sep-models OK, net LGBM).
