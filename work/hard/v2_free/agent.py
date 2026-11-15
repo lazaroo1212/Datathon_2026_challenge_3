@@ -111,6 +111,10 @@ class BatteryAgent:
             self.pv_hist[tprev] = last_pv
         soc0 = float(np.clip(_clean(obs.get("soc_kwh")) or 0.0, 0.0, CAP))
 
+        # clamp oficial: límites desde obs si el servidor los da (compatible ambos modos)
+        cap_eff = float(_clean(obs.get("cap_max_kwh")) or CAP)
+        pmax_eff = float(_clean(obs.get("power_max_kw")) or PMAX)
+
         w_known = np.nan_to_num(co2 + self.gamma * price, nan=0.10)
         for k in range(H0):
             self.w_hist[ts + timedelta(hours=k)] = float(w_known[k])
@@ -163,6 +167,6 @@ class BatteryAgent:
                 p = PMAX
             else:
                 p = 0.0
-        p_max_c = max(0.0, min(PMAX, (CAP - soc0) / ETA_C) - 0.02)
-        p_max_d = max(0.0, min(PMAX, soc0 * ETA_D) - 0.02)
+        p_max_c = max(0.0, min(pmax_eff, (cap_eff - soc0) / ETA_C) - 0.02)
+        p_max_d = max(0.0, min(pmax_eff, soc0 * ETA_D) - 0.02)
         return float(np.clip(p, -p_max_d, p_max_c))
