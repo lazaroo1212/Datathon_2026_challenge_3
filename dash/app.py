@@ -131,7 +131,7 @@ def simular_semana(df: pd.DataFrame, etiqueta: str, cap: float = 2000.0,
 df = cargar_datos()
 semanas = semanas_disponibles(df)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
     ["💰 1 · ¿Comprar la batería?", "🔧 2 · ¿Cómo opera?",
      "⚖️ 3 · ¿CO₂ o euros?", "🔥 4 · Hard Mode (solar ×12)",
      "🔬 5 · ¿Qué sabemos?", "🧪 6 · Método: cómo llegamos"])
